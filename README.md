@@ -9,8 +9,66 @@ Compute lagged differences of row sums by group
                                                                                                               
     SAS Forum                                                                                                 
     https://tinyurl.com/y5veke8l                                                                              
-    https://communities.sas.com/t5/SAS-Enterprise-Guide/sum-and-take-the-difference/m-p/555800                
-                                                                                                              
+    https://communities.sas.com/t5/SAS-Enterprise-Guide/sum-and-take-the-difference/m-p/555800     
+    
+    
+    *****************************                                                                     
+    Recent improved solutions by                                                                      
+    ****************************                                                                      
+                                                                                                      
+    Keintz, Mark                                                                                      
+    mkeintz@wharton.upenn.edu                                                                         
+                                                                                                      
+    data want;                                                                                        
+    set have;                                                                                         
+    by month  city ;                                                                                  
+    if first.city then countsum=0;                                                                    
+    countsum+count;                                                                                   
+    if last.city;                                                                                     
+    difsum=dif2(countsum);                                                                            
+    run;                                                                                              
+                                                                                                      
+    If you know the names of the cities, but you also know they are ordered differently               
+    within a month, or missing within a month, just make a DIF queue for each city:                   
+                                                                                                      
+    data want;                                                                                        
+      set have;                                                                                       
+      by month city;                                                                                  
+      if first.city then countsum=0;                                                                  
+      countsum+count;                                                                                 
+      if last.city;                                                                                   
+      if city='NEV' then difsum=dif(countsum);                                                        
+      else if city='REN' then difsum=dif(countsum);                                                   
+    run;                                                                                              
+                                                                                                      
+    The point here is that each dif is specific to a city.   So if ‘NEV’ is                           
+    present only in the first and third months, you would get a dif between months 1 and 3 for NEV.   
+                                                                                                      
+    And what if you don’t know what cities to expect?                                                 
+    That (what else but) hash object to track prior countsum for each city:                           
+                                                                                                      
+    data want (drop=_:);                                                                              
+    set have;                                                                                         
+    by city notsorted;                                                                                
+    if _n_=1 then do;                                                                                 
+      declare hash h ();                                                                              
+        h.definekey('city');                                                                          
+        h.definedata('_priorsum');                                                                    
+        h.definedone();                                                                               
+    end;                                                                                              
+                                                                                                      
+    if first.city then countsum=0;                                                                    
+    countsum+count;                                                                                   
+    if last.city;                                                                                     
+    if h.find()^=0 then difsum=.;                                                                     
+    else difsum=countsum-_priorsum;                                                                   
+    h.replace(key:city,data:countsum);                                                                
+    run;                                                                                              
+                                                                                                      
+   
+       
+       
+       
     *_                   _                                                                                    
     (_)_ __  _ __  _   _| |_                                                                                  
     | | '_ \| '_ \| | | | __|                                                                                 
